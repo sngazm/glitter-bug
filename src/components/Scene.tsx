@@ -15,20 +15,44 @@ const Sphere = () => {
   useFrame((state, delta) => {
     if (meshRef.current) {
       meshRef.current.rotation.y += delta * 0.5; // ゆっくり回転（0.5は回転速度）
+      meshRef.current.position.x = Math.sin(state.clock.elapsedTime * 0.5) * 2;
     }
   });
 
   const stencil = useMask(1, true);
 
+  // シェーダーマテリアルの定義
+  const vertexShader = `
+    varying vec3 vWorldPosition;
+    
+    void main() {
+      // ワールド空間での位置を計算
+      vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+
+  const fragmentShader = `
+    varying vec3 vWorldPosition;
+    
+    void main() {
+      // ワールド空間でのX座標に基づいて色を変化させる
+      float r = smoothstep(-2.0, 2.0, vWorldPosition.x);
+      float g = 0.5;
+      float b = 1.0 - smoothstep(-2.0, 2.0, vWorldPosition.x);
+      float a = smoothstep(-2.0, 2.0, vWorldPosition.x);
+      
+      gl_FragColor = vec4(r, g, b, a);
+    }
+  `;
+
   return (
     <mesh ref={meshRef} castShadow receiveShadow position={[0, 0, 0]}>
       <sphereGeometry args={[1, 32, 32]} />
-      <meshPhongMaterial
-        color="#ddffff"
-        emissive="#ffffff"
-        emissiveIntensity={0.5}
-        // clippingPlanes={[clippingPlane]}
-        // clipShadows={true}
+      <shaderMaterial
+        vertexShader={vertexShader}
+        fragmentShader={fragmentShader}
+        transparent={true}
         {...stencil}
       />
     </mesh>
@@ -63,14 +87,14 @@ const Scene = () => {
       </Mask>
       <Sphere />
       <OrbitControls enableDamping dampingFactor={0.05} />
-      <EffectComposer stencilBuffer>
+      {/* <EffectComposer stencilBuffer>
         <Bloom
           intensity={1.0}
           luminanceThreshold={0.1}
           luminanceSmoothing={0.9}
           height={300}
         />
-      </EffectComposer>
+      </EffectComposer> */}
     </Canvas>
   );
 };
